@@ -55,13 +55,18 @@ __launchctl_list_stopped ()
 {
     launchctl list | awk 'NR>1 && $3 !~ /0x[0-9a-fA-F]+\.(anonymous|mach_init)/ && $1 ~ /-/ {print $3}'
 }
+
+__launchctl_nospace() {
+	# compopt is not available in ancient bash versions
+	type compopt &>/dev/null && compopt -o nospace
+}
+
 _launchctl ()
 {
-    compopt +o default
+    local cur prev two_prev
+
     COMPREPLY=()
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    local two_prev="${COMP_WORDS[COMP_CWORD-2]}"
+    _get_comp_words_by_ref cur prev
 
     # Subcommand list
     local subcommands="bootstrap bootout enable disable uncache kickstart attach debug kill blame print print-cache print-disabledplist procinfo hostinfo resolveport limit runstats examine config dumpstate reboot bootshell load unload remove list start stop setenv unsetenv getenv bsexec asuser submit managerpid manageruid managername error variant version help"
@@ -72,7 +77,7 @@ _launchctl ()
     if [[ ${COMP_CWORD} -eq 2 ]]; then
         case "$prev" in
             print|enable|disable|blame|runstats|bootstrap|bootout|debug)
-                compopt -o nospace
+                __launchctl_nospace
                 if [[ ${cur} == */*/* ]]; then
                     COMPREPLY=( $(compgen -W "$(__launchctl_list_service_targets)" -- ${cur}) )
                 elif [[ ${cur} == */* ]]; then
@@ -143,14 +148,15 @@ _launchctl ()
                 return
                 ;;
             load|unload)
-                compopt -o filenames
-                compopt -o nospace
+                _compopt_o_filenames
+                __launchctl_nospace
                 COMPREPLY=( $(compgen -f -- ${cur}) )
                 return
                 ;;
         esac
     fi
     if [[ ${COMP_CWORD} -eq 3 ]]; then
+        two_prev="${COMP_WORDS[$COMP_CWORD-2]}"
         case "$two_prev" in
             config)
                 COMPREPLY=( $(compgen -W "umask path" -- ${cur}) )
@@ -161,7 +167,7 @@ _launchctl ()
                 return
                 ;;
             kill|attach|kickstart)
-                compopt -o nospace
+                __launchctl_nospace
                 if [[ ${cur} == */*/* ]]; then
                     COMPREPLY=( $(compgen -W "$(__launchctl_list_service_targets)" -- ${cur}) )
                 elif [[ ${cur} == */* ]]; then
@@ -172,8 +178,8 @@ _launchctl ()
                 return
                 ;;
             bootstrap|bootout)
-                compopt -o filenames
-                compopt -o nospace
+                _compopt_o_filenames
+                __launchctl_nospace
                 COMPREPLY=( $(compgen -f -- ${cur}) )
                 return
                 ;;
